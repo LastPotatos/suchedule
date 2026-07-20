@@ -296,6 +296,31 @@ input[type="search"]{
 .selected-summary-code{font-weight:700;font-size:13px}
 .selected-summary-name,.selected-summary-note{font-size:11px;color:var(--muted);margin-top:2px}
 .selected-summary-credit{font-size:12px;font-weight:700;white-space:nowrap}
+.selected-summary-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+}
+.remove-course-btn{
+  width:23px;
+  height:23px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  border-radius:50%;
+  padding:0;
+  font-size:20px;
+  line-height:1;
+  cursor:pointer;
+}
+.remove-course-btn:hover{
+  background:var(--danger-bg);
+  color:var(--danger);
+}
 .selected-summary-empty{padding:12px 0;color:var(--muted);font-size:12px}
 .schedule-wrap{overflow:auto;padding:14px}
 .schedule{
@@ -364,7 +389,9 @@ input[type="search"]{
   border-left:4px solid rgba(0,0,0,.24);
   box-shadow:0 2px 5px rgba(0,0,0,.12);
   z-index:4;
+  cursor:pointer;
 }
+.event:hover{filter:brightness(.97);transform:translateY(-1px)}
 .event strong{display:block;font-size:12px;margin-bottom:2px}
 .event.conflict{outline:3px solid var(--danger);z-index:5}
 .empty{padding:40px;text-align:center;color:var(--muted)}
@@ -386,7 +413,6 @@ input[type="search"]{
   <div class="row">
     <button class="btn" id="saveBtn" disabled>Save selection</button>
     <button class="btn" id="loadBtn" disabled>Load selection</button>
-    <button class="btn danger" id="clearBtn" disabled>Clear</button>
   </div>
 </header>
 
@@ -525,11 +551,6 @@ input[type="search"]{
   creditFilter.addEventListener("change", renderCourseList);
   fitFilter.addEventListener("change", renderCourseList);
 
-  $("clearBtn").addEventListener("click", () => {
-    state.selected.clear();
-    renderAll();
-  });
-
   $("saveBtn").addEventListener("click", () => {
     localStorage.setItem("suScheduleSelectionV2", JSON.stringify([...state.selected]));
     alert("Selection saved in this browser.");
@@ -560,7 +581,7 @@ input[type="search"]{
       state.expandedCourses.clear();
       controls.style.display = "";
       selectedSummaryWrap.style.display = "";
-      ["saveBtn","loadBtn","clearBtn"].forEach(id => $(id).disabled = false);
+      ["saveBtn","loadBtn"].forEach(id => $(id).disabled = false);
 
       populateFilters();
       renderAll();
@@ -1043,6 +1064,42 @@ input[type="search"]{
       `<option value="unknown">Unknown credits</option>`;
   }
 
+  function courseForSection(section) {
+    return state.courses.find(course =>
+      course.sections.some(candidate => candidate.key === section.key)
+    ) || null;
+  }
+
+  function clearCourseSelection(courseKey) {
+    const course = state.courses.find(item => item.key === courseKey);
+    if (!course) return;
+
+    course.sections.forEach(section => state.selected.delete(section.key));
+    renderAll();
+  }
+
+  function openCourseInList(courseKey) {
+    const course = state.courses.find(item => item.key === courseKey);
+    if (!course) return;
+
+    search.value = "";
+    creditFilter.value = "";
+    fitFilter.value = "";
+    state.expandedCourses.clear();
+    state.expandedCourses.add(courseKey);
+    renderCourseList();
+
+    requestAnimationFrame(() => {
+      const details = [...courseList.querySelectorAll(".course-group")]
+        .find(item => item.dataset.courseKey === courseKey);
+
+      if (details) {
+        details.open = true;
+        details.scrollIntoView({behavior:"smooth", block:"center"});
+      }
+    });
+  }
+
   function renderAll() {
     renderCourseList();
     renderSelectedSummary();
@@ -1331,8 +1388,16 @@ input[type="search"]{
       details.addEventListener("toggle", () => {
         const key = details.dataset.courseKey;
 
-        if (details.open) state.expandedCourses.add(key);
-        else state.expandedCourses.delete(key);
+        if (details.open) {
+          state.expandedCourses.clear();
+          state.expandedCourses.add(key);
+
+          courseList.querySelectorAll(".course-group").forEach(other => {
+            if (other !== details && other.open) other.open = false;
+          });
+        } else {
+          state.expandedCourses.delete(key);
+        }
       });
     });
 
@@ -1534,6 +1599,8 @@ input[type="search"]{
           first.localeCompare(second, undefined, {numeric:true})
         );
 
+        const courseKey = `${course.subject}:${course.course}`;
+
         return `<div class="selected-summary-item">
           <div>
             <div class="selected-summary-code">${esc(course.subject)} ${esc(course.course)}</div>
@@ -1542,7 +1609,16 @@ input[type="search"]{
               ? `<div class="selected-summary-note">Section${sections.length > 1 ? "s" : ""}: ${esc(sections.join(", "))}</div>`
               : ""}
           </div>
-          <div class="selected-summary-credit">${esc(formatCredits(course.credits))} credits</div>
+          <div class="selected-summary-actions">
+            <div class="selected-summary-credit">${esc(formatCredits(course.credits))} credits</div>
+            <button
+              type="button"
+              class="remove-course-btn"
+              data-remove-course="${esc(courseKey)}"
+              title="Remove this course"
+              aria-label="Remove ${esc(course.subject)} ${esc(course.course)}"
+            >&times;</button>
+          </div>
         </div>`;
       }).join("") +
       (excludedCount
@@ -1550,6 +1626,14 @@ input[type="search"]{
           `${excludedCount} selected discussion/lab/recitation/tutorial section(s) excluded from the course count and credit total.` +
           `</div>`
         : "");
+
+    selectedSummaryList.querySelectorAll("[data-remove-course]").forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearCourseSelection(button.dataset.removeCourse);
+      });
+    });
   }
 
   function renderSchedule() {
@@ -1606,10 +1690,16 @@ input[type="search"]{
             ? " conflict"
             : "";
 
+          const parentCourse = courseForSection(section);
+          const parentCourseKey = parentCourse?.key || `${section.subject}:${canonicalCourseNumber(section)}`;
+
           html += `<div
             class="event${conflictClass}"
+            data-course-key="${esc(parentCourseKey)}"
+            tabindex="0"
+            role="button"
             style="top:${top}px;height:${height}px;background:${colorFor(`${section.subject}:${section.course}`)}"
-            title="${esc(`${section.subject} ${section.course}-${section.section} · ${formatMinutes(meeting.start)}–${formatMinutes(meeting.end)}`)}"
+            title="${esc(`${section.subject} ${section.course}-${section.section} · ${formatMinutes(meeting.start)}–${formatMinutes(meeting.end)} · Click to open course`)}"
           >
             <strong>${esc(section.subject)} ${esc(section.course)}-${esc(section.section)}</strong>
             ${esc(formatMinutes(meeting.start))}–${esc(formatMinutes(meeting.end))}
@@ -1624,6 +1714,20 @@ input[type="search"]{
 
     html += `</div>`;
     scheduleWrap.innerHTML = html;
+
+    scheduleWrap.querySelectorAll(".event[data-course-key]").forEach(eventBlock => {
+      const openMatchingCourse = () => {
+        openCourseInList(eventBlock.dataset.courseKey);
+      };
+
+      eventBlock.addEventListener("click", openMatchingCourse);
+      eventBlock.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMatchingCourse();
+        }
+      });
+    });
   }
 
   function findConflicts(sections) {
