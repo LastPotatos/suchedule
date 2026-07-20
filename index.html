@@ -1,0 +1,1722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SU Course Schedule Builder</title>
+<style>
+:root{
+  --bg:#f5f7fb;
+  --panel:#ffffff;
+  --text:#18212f;
+  --muted:#667085;
+  --line:#d9e0ea;
+  --brand:#1f5eff;
+  --danger:#d92d20;
+  --danger-bg:#fff1f0;
+  --ok:#067647;
+  --ok-bg:#ecfdf3;
+  --warn:#b54708;
+  --warn-bg:#fffaeb;
+  --slot-height:64px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input,select{font:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{
+  outline:3px solid rgba(31,94,255,.22);
+  outline-offset:2px;
+}
+header{
+  background:#0e1b3d;
+  color:white;
+  padding:18px 22px;
+  display:flex;
+  gap:18px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+header h1{font-size:20px;margin:0}
+header p{margin:3px 0 0;color:#cbd5e1;font-size:13px}
+main{
+  display:grid;
+  grid-template-columns:minmax(350px,460px) minmax(700px,1fr);
+  gap:16px;
+  padding:16px;
+  min-height:calc(100vh - 85px);
+}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 4px 18px rgba(16,24,40,.05);
+  overflow:hidden;
+}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--line)}
+.panel-body{padding:14px 16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.drop{
+  border:2px dashed #9fb4dd;
+  border-radius:12px;
+  padding:20px;
+  text-align:center;
+  background:#f8fbff;
+  cursor:pointer;
+}
+.drop.drag{background:#eaf1ff;border-color:var(--brand)}
+.drop strong{display:block;margin-bottom:5px}
+.csv-status{
+  margin-top:9px;
+  font-size:12px;
+  color:var(--muted);
+}
+.csv-status.loading{color:var(--brand)}
+.csv-status.ok{color:var(--ok)}
+.csv-status.error{color:var(--danger)}
+.btn{
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:9px;
+  padding:9px 12px;
+  cursor:pointer;
+}
+.btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type="search"]{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+.filter-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(125px,.7fr) minmax(155px,.9fr);
+  gap:8px;
+  margin-top:8px;
+}
+.filter-row select{width:100%}
+.stats{font-size:12px;color:var(--muted);margin-top:9px}
+.small{font-size:12px;color:var(--muted)}
+.badge{
+  display:inline-block;
+  border-radius:999px;
+  padding:2px 7px;
+  font-size:11px;
+  background:#eef3ff;
+  color:#264c9b;
+  margin:2px 4px 2px 0;
+}
+.badge.aux{background:#f4ebff;color:#6941c6}
+.badge.selected{background:#eaf1ff;color:#1747bf}
+.course-list{
+  max-height:59vh;
+  overflow:auto;
+  border-top:1px solid var(--line);
+  margin:12px -16px -14px;
+}
+.course-group{
+  border-bottom:1px solid #edf0f4;
+  background:#fff;
+}
+.course-group[open]{background:#fbfcff}
+.course-group summary{
+  cursor:pointer;
+  list-style:none;
+  padding:13px 16px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+}
+.course-group summary::-webkit-details-marker{display:none}
+.course-group summary:hover{background:#fafcff}
+.course-heading{min-width:0}
+.course-code{font-size:14px;font-weight:800}
+.course-name{
+  font-size:12px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  margin-top:2px;
+}
+.course-summary-side{text-align:right}
+.course-credit{font-size:12px;font-weight:700}
+.section-count{font-size:11px;color:var(--muted);margin-top:3px}
+.course-fit-summary{
+  margin-top:5px;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:4px;
+  max-width:220px;
+}
+.course-fit-pill{
+  border-radius:999px;
+  padding:3px 7px;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.course-fit-pill.ok{background:var(--ok-bg);color:var(--ok)}
+.course-fit-pill.bad{background:var(--danger-bg);color:var(--danger)}
+.course-fit-pill.unknown{background:var(--warn-bg);color:var(--warn)}
+.expand-label{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-top:5px;
+  color:var(--brand);
+  font-size:11px;
+  font-weight:700;
+}
+.expand-label::after{content:"▾";transition:transform .15s ease}
+.course-group[open] .expand-label::after{transform:rotate(180deg)}
+.section-list{
+  border-top:1px solid #e8edf3;
+  padding:7px 10px 10px;
+}
+.lecture-heading,
+.auxiliary-heading{
+  margin:10px 2px 6px;
+  font-size:11px;
+  font-weight:800;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.lecture-heading:first-child{margin-top:4px}
+.auxiliary-group{
+  margin-top:10px;
+  padding-top:8px;
+  border-top:1px dashed #d8deea;
+}
+.auxiliary-options{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+.section-option.compact{
+  flex:1 1 230px;
+  min-width:210px;
+  margin-top:0;
+}
+.section-option{
+  display:grid;
+  grid-template-columns:22px minmax(0,1fr);
+  gap:8px;
+  padding:10px;
+  margin-top:5px;
+  border:1px solid #e5eaf1;
+  border-radius:10px;
+  background:#fff;
+}
+.section-option.selected-section{border-color:#94b3ff;background:#f7f9ff}
+.section-option.conflicting-section{border-color:#fda29b;background:#fffafa}
+.section-option input{margin-top:3px}
+.section-main{min-width:0}
+.section-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+}
+.section-title{font-weight:750;font-size:13px}
+.section-meta{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+  margin-top:4px;
+}
+.fit-status{
+  border-radius:999px;
+  padding:3px 7px;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.fit-status.ok{background:var(--ok-bg);color:var(--ok)}
+.fit-status.bad{background:var(--danger-bg);color:var(--danger)}
+.fit-status.unknown{background:var(--warn-bg);color:var(--warn)}
+.fit-detail{font-size:11px;margin-top:5px}
+.fit-detail.bad{color:var(--danger)}
+.fit-detail.ok{color:var(--ok)}
+.fit-detail.unknown{color:var(--warn)}
+.conflict-note{
+  display:none;
+  background:var(--danger-bg);
+  color:#912018;
+  border:1px solid #fecdca;
+  padding:9px 11px;
+  border-radius:8px;
+  margin-top:10px;
+  font-size:13px;
+}
+.conflict-note.show{display:block}
+.selected-summary-wrap{padding:12px 14px 0}
+.selected-summary{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fbfcff;
+  overflow:hidden;
+}
+.selected-summary summary{
+  cursor:pointer;
+  list-style:none;
+  padding:11px 13px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-weight:700;
+}
+.selected-summary summary::-webkit-details-marker{display:none}
+.selected-summary summary::after{
+  content:"▾";
+  color:var(--muted);
+  transition:transform .15s ease;
+}
+.selected-summary[open] summary::after{transform:rotate(180deg)}
+.selected-summary-list{border-top:1px solid var(--line);padding:5px 13px}
+.selected-summary-item{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:12px;
+  padding:9px 0;
+  border-bottom:1px solid #edf0f4;
+}
+.selected-summary-item:last-child{border-bottom:0}
+.selected-summary-code{font-weight:700;font-size:13px}
+.selected-summary-name,.selected-summary-note{font-size:11px;color:var(--muted);margin-top:2px}
+.selected-summary-credit{font-size:12px;font-weight:700;white-space:nowrap}
+.selected-summary-empty{padding:12px 0;color:var(--muted);font-size:12px}
+.schedule-wrap{overflow:auto;padding:14px}
+.schedule{
+  min-width:850px;
+  display:grid;
+  grid-template-columns:72px repeat(5,minmax(150px,1fr));
+  position:relative;
+}
+.day-head,.time-head{
+  height:42px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  background:#f9fafb;
+  position:sticky;
+  top:0;
+  z-index:6;
+}
+.time-head{left:0;z-index:7}
+.time-col{
+  position:relative;
+  border-right:1px solid var(--line);
+  background:#fbfcfe;
+  z-index:3;
+}
+.day-col{
+  position:relative;
+  border-right:1px solid var(--line);
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      #fff 0,
+      #fff calc(var(--slot-height) - 1px),
+      #e8edf3 calc(var(--slot-height) - 1px),
+      #e8edf3 var(--slot-height)
+    );
+}
+.time-label{
+  font-size:11px;
+  color:var(--muted);
+  padding-top:4px;
+  text-align:center;
+  border-bottom:1px solid #e8edf3;
+}
+.end-time-label{
+  position:absolute;
+  bottom:-7px;
+  left:0;
+  right:0;
+  font-size:10px;
+  color:var(--muted);
+  text-align:center;
+  background:#fbfcfe;
+}
+.event{
+  position:absolute;
+  left:5px;
+  right:5px;
+  border-radius:8px;
+  padding:6px 8px;
+  font-size:11px;
+  line-height:1.22;
+  overflow:hidden;
+  border-left:4px solid rgba(0,0,0,.24);
+  box-shadow:0 2px 5px rgba(0,0,0,.12);
+  z-index:4;
+}
+.event strong{display:block;font-size:12px;margin-bottom:2px}
+.event.conflict{outline:3px solid var(--danger);z-index:5}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+@media(max-width:1050px){
+  main{grid-template-columns:1fr}
+  .course-list{max-height:42vh}
+}
+@media(max-width:560px){
+  .filter-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>SU Course Schedule Builder</h1>
+    <p>Course data loads automatically from GitHub.</p>
+  </div>
+  <div class="row">
+    <button class="btn" id="saveBtn" disabled>Save selection</button>
+    <button class="btn" id="loadBtn" disabled>Load selection</button>
+    <button class="btn danger" id="clearBtn" disabled>Clear</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-head"><strong>Courses</strong></div>
+    <div class="panel-body">
+      <input id="fileInput" type="file" accept=".csv,text/csv" hidden />
+      <div class="drop" id="dropZone">
+        <strong id="csvSourceLabel">Loading sabanci_courses.csv from GitHub…</strong>
+        <span class="small">Click here or drop a file to use a different CSV.</span>
+        <div class="csv-status loading" id="csvStatus">Connecting to the course-data file…</div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="reloadCsvBtn" type="button">Reload GitHub CSV</button>
+      </div>
+
+      <div id="controls" style="display:none;margin-top:12px">
+        <input type="search" id="search" placeholder="Search course code, e.g. CS 204..." />
+        <div class="filter-row">
+          <select id="searchFieldFilter" class="btn">
+            <option value="coursecode">Search by course code</option>
+            <option value="instructor">Search by instructor</option>
+            <option value="crn">Search by CRN</option>
+          </select>
+          <select id="creditFilter" class="btn"></select>
+          <select id="fitFilter" class="btn">
+            <option value="">All fit statuses</option>
+            <option value="fits">Can fully fit</option>
+            <option value="partial">Some part fits</option>
+            <option value="nofit">Cannot fully fit</option>
+            <option value="unknown">Fit unknown</option>
+          </select>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="conflict-note" id="conflictNote"></div>
+        <div class="course-list" id="courseList"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head row" style="justify-content:space-between">
+      <strong>Weekly schedule</strong>
+      <span class="small">Monday–Friday · 08:40–19:30</span>
+    </div>
+
+    <div class="selected-summary-wrap" id="selectedSummaryWrap" style="display:none">
+      <details class="selected-summary">
+        <summary><span id="selectedSummaryLabel">Selected courses (0) · 0 credits</span></summary>
+        <div class="selected-summary-list" id="selectedSummaryList"></div>
+      </details>
+    </div>
+
+    <div class="schedule-wrap" id="scheduleWrap">
+      <div class="empty">Loading course data from GitHub…</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const CSV_URL = "./sabanci_courses.csv";
+  const START_MIN = 8 * 60 + 40;
+  const END_MIN = 19 * 60 + 30;
+  const SLOT_HEIGHT = 64;
+  const DAYS = [
+    {name:"Monday", code:"M"},
+    {name:"Tuesday", code:"T"},
+    {name:"Wednesday", code:"W"},
+    {name:"Thursday", code:"R"},
+    {name:"Friday", code:"F"}
+  ];
+
+  const state = {
+    sections: [],
+    courses: [],
+    selected: new Set(),
+    filteredCourses: [],
+    expandedCourses: new Set()
+  };
+
+  const $ = id => document.getElementById(id);
+  const fileInput = $("fileInput");
+  const dropZone = $("dropZone");
+  const reloadCsvBtn = $("reloadCsvBtn");
+  const csvStatus = $("csvStatus");
+  const csvSourceLabel = $("csvSourceLabel");
+  const controls = $("controls");
+  const courseList = $("courseList");
+  const scheduleWrap = $("scheduleWrap");
+  const searchFieldFilter = $("searchFieldFilter");
+  const creditFilter = $("creditFilter");
+  const fitFilter = $("fitFilter");
+  const search = $("search");
+  const conflictNote = $("conflictNote");
+  const stats = $("stats");
+  const selectedSummaryWrap = $("selectedSummaryWrap");
+  const selectedSummaryLabel = $("selectedSummaryLabel");
+  const selectedSummaryList = $("selectedSummaryList");
+
+  dropZone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", event => loadFile(event.target.files[0]));
+
+  ["dragenter","dragover"].forEach(type => {
+    dropZone.addEventListener(type, event => {
+      event.preventDefault();
+      dropZone.classList.add("drag");
+    });
+  });
+
+  ["dragleave","drop"].forEach(type => {
+    dropZone.addEventListener(type, event => {
+      event.preventDefault();
+      dropZone.classList.remove("drag");
+    });
+  });
+
+  dropZone.addEventListener("drop", event => loadFile(event.dataTransfer.files[0]));
+  reloadCsvBtn.addEventListener("click", loadCSVFromGitHub);
+
+  search.addEventListener("input", renderCourseList);
+  searchFieldFilter.addEventListener("change", () => {
+    const placeholders = {
+      coursecode:"Search course code, e.g. CS 204...",
+      instructor:"Search instructor name...",
+      crn:"Search CRN..."
+    };
+
+    search.placeholder =
+      placeholders[searchFieldFilter.value] || "Search...";
+    renderCourseList();
+  });
+  creditFilter.addEventListener("change", renderCourseList);
+  fitFilter.addEventListener("change", renderCourseList);
+
+  $("clearBtn").addEventListener("click", () => {
+    state.selected.clear();
+    renderAll();
+  });
+
+  $("saveBtn").addEventListener("click", () => {
+    localStorage.setItem("suScheduleSelectionV2", JSON.stringify([...state.selected]));
+    alert("Selection saved in this browser.");
+  });
+
+  $("loadBtn").addEventListener("click", () => {
+    const saved = JSON.parse(localStorage.getItem("suScheduleSelectionV2") || "[]");
+    normalizeExclusiveSelection(saved);
+    renderAll();
+  });
+
+  function setCSVStatus(message, kind = "") {
+    csvStatus.textContent = message;
+    csvStatus.className = `csv-status${kind ? " " + kind : ""}`;
+  }
+
+  function loadCSVText(csvText, sourceLabel) {
+    try {
+      const rows = parseCSV(csvText);
+      state.sections = groupRows(rows);
+      state.courses = groupCourses(state.sections);
+
+      if (!state.sections.length || !state.courses.length) {
+        throw new Error("No recognizable course rows were found.");
+      }
+
+      state.selected.clear();
+      state.expandedCourses.clear();
+      controls.style.display = "";
+      selectedSummaryWrap.style.display = "";
+      ["saveBtn","loadBtn","clearBtn"].forEach(id => $(id).disabled = false);
+
+      populateFilters();
+      renderAll();
+
+      csvSourceLabel.textContent = sourceLabel;
+      setCSVStatus(
+        `${state.courses.length} courses and ${state.sections.length} sections loaded.`,
+        "ok"
+      );
+    } catch (error) {
+      console.error(error);
+      setCSVStatus(`CSV could not be parsed: ${error.message}`, "error");
+      scheduleWrap.innerHTML =
+        `<div class="empty">The course CSV could not be loaded. Use the manual file picker or fix sabanci_courses.csv in the repository.</div>`;
+    }
+  }
+
+  async function loadCSVFromGitHub() {
+    reloadCsvBtn.disabled = true;
+    csvSourceLabel.textContent = "Loading sabanci_courses.csv from GitHub…";
+    setCSVStatus("Fetching the latest version…", "loading");
+
+    try {
+      const separator = CSV_URL.includes("?") ? "&" : "?";
+      const response = await fetch(
+        `${CSV_URL}${separator}cacheBust=${Date.now()}`,
+        {cache:"no-store"}
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const csvText = await response.text();
+      loadCSVText(csvText, "Using sabanci_courses.csv from GitHub");
+    } catch (error) {
+      console.error(error);
+      csvSourceLabel.textContent = "GitHub CSV was not found";
+      setCSVStatus(
+        "Place sabanci_courses.csv beside index.html, then press Reload GitHub CSV. Manual upload still works.",
+        "error"
+      );
+      scheduleWrap.innerHTML =
+        `<div class="empty">Could not load sabanci_courses.csv from the website repository.</div>`;
+    } finally {
+      reloadCsvBtn.disabled = false;
+    }
+  }
+
+  function loadFile(file) {
+    if (!file) return;
+
+    if (!/\.csv$/i.test(file.name)) {
+      alert("Please choose a CSV file.");
+      return;
+    }
+
+    setCSVStatus(`Reading ${file.name}…`, "loading");
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setCSVStatus("The selected file could not be read.", "error");
+    };
+
+    reader.onload = () => {
+      loadCSVText(reader.result, `Using manually selected file: ${file.name}`);
+    };
+
+    reader.readAsText(file, "UTF-8");
+  }
+
+  function detectDelimiter(text) {
+    const first = text.replace(/^\uFEFF/, "").split(/\r?\n/)[0] || "";
+    const commas = (first.match(/,/g) || []).length;
+    const semicolons = (first.match(/;/g) || []).length;
+    return semicolons > commas ? ";" : ",";
+  }
+
+  function parseCSV(text) {
+    text = text.replace(/^\uFEFF/, "");
+    const delimiter = detectDelimiter(text);
+    const table = [];
+    let row = [];
+    let field = "";
+    let quoted = false;
+
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index];
+
+      if (quoted) {
+        if (character === '"' && text[index + 1] === '"') {
+          field += '"';
+          index++;
+        } else if (character === '"') {
+          quoted = false;
+        } else {
+          field += character;
+        }
+      } else if (character === '"') {
+        quoted = true;
+      } else if (character === delimiter) {
+        row.push(field);
+        field = "";
+      } else if (character === "\n") {
+        row.push(field.replace(/\r$/, ""));
+        table.push(row);
+        row = [];
+        field = "";
+      } else {
+        field += character;
+      }
+    }
+
+    if (field.length || row.length) {
+      row.push(field.replace(/\r$/, ""));
+      table.push(row);
+    }
+
+    if (table.length < 2) return [];
+
+    const headers = table[0].map(normalizeHeader);
+
+    return table.slice(1)
+      .filter(values => values.some(value => String(value).trim()))
+      .map(values => {
+        const object = {};
+        headers.forEach((header, index) => {
+          object[header] = (values[index] ?? "").trim();
+        });
+        return object;
+      });
+  }
+
+  function normalizeHeader(header) {
+    const normalized = String(header)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+    const aliases = {
+      crn:"crn",
+      subject:"subject",
+      course:"course",
+      coursenumber:"course",
+      section:"section",
+      title:"title",
+      credits:"credits",
+      meetingtype:"meetingtype",
+      type:"meetingtype",
+      time:"time",
+      days:"days",
+      location:"location",
+      where:"location",
+      daterange:"daterange",
+      scheduletype:"scheduletype",
+      instructors:"instructors",
+      instructor:"instructors"
+    };
+
+    return aliases[normalized] || normalized;
+  }
+
+  function groupRows(rows) {
+    const map = new Map();
+
+    rows.forEach(row => {
+      const subject = (row.subject || "").toUpperCase();
+      const course = row.course || "";
+      const section = row.section || "";
+      const crn = row.crn || "";
+      const title = row.title || `${subject} ${course}`;
+      const key = crn
+        ? `CRN:${crn}`
+        : `${subject}:${course}:${section}:${title}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          subject,
+          course,
+          section,
+          crn,
+          title,
+          credits: row.credits || "",
+          instructors: new Set(),
+          meetings: []
+        });
+      }
+
+      const group = map.get(key);
+
+      if (!group.credits && row.credits) group.credits = row.credits;
+      if (row.instructors) group.instructors.add(row.instructors);
+
+      const meeting = parseMeeting(row);
+      if (meeting) group.meetings.push(meeting);
+    });
+
+    return [...map.values()]
+      .map(group => ({
+        ...group,
+        instructors:[...group.instructors]
+      }))
+      .sort((first, second) =>
+        `${first.subject} ${first.course} ${first.section}`.localeCompare(
+          `${second.subject} ${second.course} ${second.section}`,
+          undefined,
+          {numeric:true}
+        )
+      );
+  }
+
+  function canonicalCourseNumber(section) {
+    const raw = String(section.course || "")
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .trim();
+
+    if (!raw) return "";
+
+    if (isLabOrRecitation(section)) {
+      const numericBase = raw.match(/^(\d+)/);
+      if (numericBase) return numericBase[1];
+
+      return raw.replace(
+        /(?:[-_]?(?:LABORATORY|LAB|DISCUSSION|DISC|DIS|RECITATION|RECIT|REC|TUTORIAL|TUT|L|R|D))\d*$/i,
+        ""
+      ) || raw;
+    }
+
+    return raw;
+  }
+
+  function cleanCourseTitle(title) {
+    const cleaned = String(title || "")
+      .replace(
+        /\s*[-–—:()]?\s*\b(?:laboratory|lab|discussion|disc|recitation|recit|tutorial)\b.*$/i,
+        ""
+      )
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return cleaned || String(title || "").trim();
+  }
+
+  function groupCourses(sections) {
+    const map = new Map();
+
+    sections.forEach(section => {
+      const normalizedSubject = String(section.subject || "")
+        .toUpperCase()
+        .replace(/\s+/g, "")
+        .trim();
+      const normalizedCourse = canonicalCourseNumber(section);
+      const key = `${normalizedSubject}:${normalizedCourse}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          subject:normalizedSubject || section.subject,
+          course:normalizedCourse || section.course,
+          title:"",
+          sections:[]
+        });
+      }
+
+      map.get(key).sections.push(section);
+    });
+
+    return [...map.values()]
+      .map(course => {
+        const mainSections = course.sections
+          .filter(section => !isLabOrRecitation(section))
+          .sort((first, second) =>
+            String(first.section).localeCompare(
+              String(second.section),
+              undefined,
+              {numeric:true}
+            )
+          );
+
+        const auxiliarySections = course.sections
+          .filter(isLabOrRecitation)
+          .sort((first, second) => {
+            const typeComparison = auxiliaryLabel(first).localeCompare(
+              auxiliaryLabel(second)
+            );
+
+            if (typeComparison) return typeComparison;
+
+            return String(first.section).localeCompare(
+              String(second.section),
+              undefined,
+              {numeric:true}
+            );
+          });
+
+        const preferredSection = mainSections[0] || auxiliarySections[0];
+        const creditSource = [...mainSections, ...auxiliarySections]
+          .find(section => numericCredits(section.credits) !== null);
+        const preferredTitle = mainSections
+          .map(section => cleanCourseTitle(section.title))
+          .find(Boolean) ||
+          auxiliarySections
+            .map(section => cleanCourseTitle(section.title))
+            .find(Boolean) ||
+          preferredSection?.title ||
+          `${course.subject} ${course.course}`;
+
+        return {
+          ...course,
+          course:preferredSection
+            ? canonicalCourseNumber(preferredSection)
+            : course.course,
+          title:preferredTitle,
+          credits:creditSource?.credits || "",
+          mainSections,
+          auxiliarySections,
+          sections:[...mainSections, ...auxiliarySections]
+        };
+      })
+      .sort((first, second) =>
+        `${first.subject} ${first.course}`.localeCompare(
+          `${second.subject} ${second.course}`,
+          undefined,
+          {numeric:true}
+        )
+      );
+  }
+
+  function parseMeeting(row) {
+    const range = parseTimeRange(row.time || "");
+    const days = parseDays(row.days || "");
+
+    if (!range || !days.length) return null;
+
+    return {
+      start:range[0],
+      end:range[1],
+      days,
+      timeText:row.time || "",
+      location:row.location || "",
+      type:row.meetingtype || "",
+      instructor:row.instructors || ""
+    };
+  }
+
+  function parseTimeRange(value) {
+    const text = String(value)
+      .trim()
+      .toLowerCase()
+      .replace(/\./g, "");
+
+    if (!text || /tba|arranged/.test(text)) return null;
+
+    const matches = [...text.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/g)];
+    if (matches.length < 2) return null;
+
+    const minutes = matches.slice(0, 2).map(match => {
+      let hour = Number(match[1]);
+      const minute = Number(match[2] || 0);
+      const period = match[3];
+
+      if (period === "pm" && hour !== 12) hour += 12;
+      if (period === "am" && hour === 12) hour = 0;
+
+      return hour * 60 + minute;
+    });
+
+    if (!matches[0][3] && matches[1][3]) {
+      const endingPeriod = matches[1][3];
+      let startingHour = Number(matches[0][1]);
+      const startingMinute = Number(matches[0][2] || 0);
+
+      if (endingPeriod === "pm" && startingHour < 8) startingHour += 12;
+      minutes[0] = startingHour * 60 + startingMinute;
+    }
+
+    return minutes[1] > minutes[0] ? minutes : null;
+  }
+
+  function parseDays(value) {
+    let text = String(value).trim();
+    if (!text || /tba|arranged/i.test(text)) return [];
+
+    const words = {
+      monday:"M",
+      mon:"M",
+      pazartesi:"M",
+      tuesday:"T",
+      tue:"T",
+      sali:"T",
+      "salı":"T",
+      wednesday:"W",
+      wed:"W",
+      carsamba:"W",
+      "çarşamba":"W",
+      thursday:"R",
+      thu:"R",
+      persembe:"R",
+      "perşembe":"R",
+      friday:"F",
+      fri:"F",
+      cuma:"F"
+    };
+
+    const lower = text.toLowerCase();
+    const found = [];
+
+    Object.entries(words).forEach(([word, code]) => {
+      if (
+        new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(lower) &&
+        !found.includes(code)
+      ) {
+        found.push(code);
+      }
+    });
+
+    if (found.length) {
+      return DAYS.map(day => day.code).filter(code => found.includes(code));
+    }
+
+    text = text
+      .toUpperCase()
+      .replace(/TH/g, "R")
+      .replace(/TU/g, "T")
+      .replace(/[^MTWRF]/g, "");
+
+    return [...new Set([...text])]
+      .filter(code => DAYS.some(day => day.code === code));
+  }
+
+  function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function sectionCategory(section) {
+    const text = `${section.title || ""} ${section.section || ""} ${section.meetings
+      .map(meeting => meeting.type || "")
+      .join(" ")}`;
+
+    if (/\blab|laboratory\b/i.test(text)) return "lab";
+    if (/\bdiscussion|disc\b/i.test(text)) return "discussion";
+    if (/\brecitation|recit\b/i.test(text)) return "recitation";
+    if (/\btutorial\b/i.test(text)) return "tutorial";
+    return "lecture";
+  }
+
+  function isLabOrRecitation(section) {
+    return sectionCategory(section) !== "lecture";
+  }
+
+  function numericCredits(value) {
+    const match = String(value || "")
+      .replace(",", ".")
+      .match(/\d+(?:\.\d+)?/);
+
+    return match ? Number(match[0]) : null;
+  }
+
+  function formatCredits(value) {
+    if (value === null || !Number.isFinite(value)) return "?";
+    return Number.isInteger(value)
+      ? String(value)
+      : String(Number(value.toFixed(2)));
+  }
+
+  function populateFilters() {
+    const creditValues = [...new Set(
+      state.courses
+        .map(course => numericCredits(course.credits))
+        .filter(value => value !== null)
+    )].sort((first, second) => first - second);
+
+    creditFilter.innerHTML =
+      `<option value="">All credits</option>` +
+      creditValues.map(value =>
+        `<option value="${value}">${esc(formatCredits(value))} credit${value === 1 ? "" : "s"}</option>`
+      ).join("") +
+      `<option value="unknown">Unknown credits</option>`;
+  }
+
+  function renderAll() {
+    renderCourseList();
+    renderSelectedSummary();
+    renderSchedule();
+  }
+
+  function auxiliaryKind(section) {
+    return sectionCategory(section);
+  }
+
+  function categoryFeasibility(sections) {
+    if (!sections.length) return null;
+
+    const results = sections.map(section => evaluateSectionFit(section));
+    const fittingCount = results.filter(result => result.kind === "ok").length;
+    const unknownCount = results.filter(result => result.kind === "unknown").length;
+
+    if (fittingCount > 0) {
+      return {
+        kind:"ok",
+        fittingCount,
+        total:sections.length
+      };
+    }
+
+    if (unknownCount > 0) {
+      return {
+        kind:"unknown",
+        fittingCount:0,
+        total:sections.length
+      };
+    }
+
+    return {
+      kind:"bad",
+      fittingCount:0,
+      total:sections.length
+    };
+  }
+
+  function courseFitSummary(course) {
+    const categories = [];
+
+    const lectureResult = categoryFeasibility(course.mainSections);
+    if (lectureResult) {
+      categories.push({
+        label:"lecture",
+        ...lectureResult
+      });
+    }
+
+    const labs = course.auxiliarySections.filter(
+      section => auxiliaryKind(section) === "lab"
+    );
+    const discussions = course.auxiliarySections.filter(
+      section => auxiliaryKind(section) === "discussion"
+    );
+    const recitations = course.auxiliarySections.filter(
+      section => auxiliaryKind(section) === "recitation"
+    );
+    const tutorials = course.auxiliarySections.filter(
+      section => auxiliaryKind(section) === "tutorial"
+    );
+
+    [
+      ["lab", labs],
+      ["discussion", discussions],
+      ["recitation", recitations],
+      ["tutorial", tutorials]
+    ].forEach(([label, sections]) => {
+      const result = categoryFeasibility(sections);
+      if (result) categories.push({label, ...result});
+    });
+
+    return categories;
+  }
+
+  function overallCourseFit(course) {
+    const categories = courseFitSummary(course);
+
+    if (!categories.length) return "unknown";
+
+    const hasBad = categories.some(category => category.kind === "bad");
+    const hasUnknown = categories.some(category => category.kind === "unknown");
+    const hasGood = categories.some(category => category.kind === "ok");
+
+    if (!hasBad && !hasUnknown) return "fits";
+    if (hasBad && hasGood) return "partial";
+    if (hasUnknown && !hasBad) return "unknown";
+    if (hasUnknown && hasGood) return "partial";
+    return "nofit";
+  }
+
+  function renderCourseFitSummary(course) {
+    const categories = courseFitSummary(course);
+    if (!categories.length) return "";
+
+    return `<div class="course-fit-summary">${categories.map(category => {
+      let text;
+
+      if (category.kind === "ok") {
+        text = `${category.fittingCount}/${category.total} ${category.label} fit`;
+      } else if (category.kind === "unknown") {
+        text = `${category.label} fit unknown`;
+      } else {
+        text = `No ${category.label} fits`;
+      }
+
+      return `<span class="course-fit-pill ${category.kind}">${esc(text)}</span>`;
+    }).join("")}</div>`;
+  }
+
+  function categoryDisplayName(category) {
+    const labels = {
+      lecture:"Lecture sections",
+      discussion:"Discussion sections",
+      recitation:"Recitation sections",
+      lab:"Lab sections",
+      tutorial:"Tutorial sections"
+    };
+
+    return labels[category] || "Sections";
+  }
+
+  function groupedSectionCategories(course) {
+    const order = ["lecture", "discussion", "recitation", "lab", "tutorial"];
+
+    return order
+      .map(category => ({
+        category,
+        sections:course.sections.filter(
+          section => sectionCategory(section) === category
+        )
+      }))
+      .filter(group => group.sections.length);
+  }
+
+  function selectSectionExclusively(sectionKey) {
+    const section = state.sections.find(item => item.key === sectionKey);
+    if (!section) return;
+
+    const course = state.courses.find(item =>
+      item.sections.some(candidate => candidate.key === sectionKey)
+    );
+    if (!course) return;
+
+    const category = sectionCategory(section);
+
+    course.sections.forEach(candidate => {
+      if (sectionCategory(candidate) === category) {
+        state.selected.delete(candidate.key);
+      }
+    });
+
+    state.selected.add(sectionKey);
+  }
+
+  function normalizeExclusiveSelection(keys) {
+    state.selected.clear();
+
+    keys.forEach(key => {
+      if (state.sections.some(section => section.key === key)) {
+        selectSectionExclusively(key);
+      }
+    });
+  }
+
+  function renderCourseList() {
+    const query = search.value.trim().toLowerCase();
+    const compactQuery = query.replace(/[^a-z0-9]/g, "");
+    const searchField = searchFieldFilter.value;
+    const credit = creditFilter.value;
+    const fitStatus = fitFilter.value;
+
+    state.filteredCourses = state.courses.filter(course => {
+      const courseCredit = numericCredits(course.credits);
+      const matchesCredit =
+        !credit ||
+        (credit === "unknown"
+          ? courseCredit === null
+          : courseCredit === Number(credit));
+
+      const searchValues = {
+        coursecode:[
+          `${course.subject || ""} ${course.course || ""}`,
+          `${course.subject || ""}${course.course || ""}`
+        ],
+        instructor:course.sections.flatMap(section => section.instructors || []),
+        crn:course.sections.map(section => section.crn || "")
+      };
+
+      const searchable = (searchValues[searchField] || [])
+        .join(" ")
+        .toLowerCase();
+      const compactSearchable = searchable.replace(/[^a-z0-9]/g, "");
+      const matchesQuery =
+        !query ||
+        searchable.includes(query) ||
+        (compactQuery && compactSearchable.includes(compactQuery));
+
+      const courseFit = overallCourseFit(course);
+      const matchesFit =
+        !fitStatus ||
+        courseFit === fitStatus;
+
+      return (
+        matchesCredit &&
+        matchesFit &&
+        matchesQuery
+      );
+    });
+
+    const selectedSections = state.selected.size;
+    stats.textContent =
+      `${state.courses.length} courses · ${state.sections.length} sections · ` +
+      `${selectedSections} selected · ${state.filteredCourses.length} visible`;
+
+    if (!state.filteredCourses.length) {
+      courseList.innerHTML = `<div class="empty">No matching course found.</div>`;
+      return;
+    }
+
+    courseList.innerHTML = state.filteredCourses.map(course => {
+      const selectedCount = course.sections.filter(section =>
+        state.selected.has(section.key)
+      ).length;
+      const categoryGroups = groupedSectionCategories(course);
+      const countParts = categoryGroups.map(group => {
+        const label = group.category === "recitation"
+          ? "recit"
+          : group.category;
+
+        return `${group.sections.length} ${label}${group.sections.length === 1 ? "" : "s"}`;
+      });
+
+      const auxiliaryCount = course.sections.filter(
+        section => sectionCategory(section) !== "lecture"
+      ).length;
+      const open = state.expandedCourses.has(course.key) ? " open" : "";
+
+      return `<details class="course-group" data-course-key="${esc(course.key)}"${open}>
+        <summary>
+          <div class="course-heading">
+            <div class="course-code">${esc(course.subject)} ${esc(course.course)}</div>
+            <div class="course-name">${esc(course.title)}</div>
+            <div>
+              ${selectedCount
+                ? `<span class="badge selected">${selectedCount} selected</span>`
+                : ""}
+              
+            </div>
+          </div>
+          <div class="course-summary-side">
+            <div class="course-credit">${esc(formatCredits(numericCredits(course.credits)))} credits</div>
+            <div class="section-count">${esc(countParts.join(" · ") || "No sections")}</div>
+            ${renderCourseFitSummary(course)}
+            <div class="expand-label">Select sections</div>
+          </div>
+        </summary>
+
+        <div class="section-list">
+          ${categoryGroups.map(group => `
+            <div class="${group.category === "lecture" ? "" : "auxiliary-group"}">
+              <div class="${group.category === "lecture" ? "lecture-heading" : "auxiliary-heading"}">
+                ${esc(categoryDisplayName(group.category))}
+                <span style="font-weight:500;text-transform:none;letter-spacing:0">
+                  · choose one
+                </span>
+              </div>
+              <div class="${group.category === "lecture" ? "" : "auxiliary-options"}">
+                ${group.sections.map(section =>
+                  renderSectionOption(section, group.category !== "lecture")
+                ).join("")}
+              </div>
+            </div>
+          `).join("")}
+
+          ${!categoryGroups.length
+            ? `<div class="selected-summary-empty">No selectable sections found.</div>`
+            : ""}
+        </div>
+      </details>`;
+    }).join("");
+
+    courseList.querySelectorAll(".course-group").forEach(details => {
+      details.addEventListener("toggle", () => {
+        const key = details.dataset.courseKey;
+
+        if (details.open) state.expandedCourses.add(key);
+        else state.expandedCourses.delete(key);
+      });
+    });
+
+    courseList.querySelectorAll("input[data-section-key]").forEach(checkbox => {
+      checkbox.addEventListener("change", () => {
+        const key = checkbox.dataset.sectionKey;
+
+        if (checkbox.checked) {
+          selectSectionExclusively(key);
+        } else {
+          state.selected.delete(key);
+        }
+
+        renderAll();
+      });
+    });
+  }
+
+  function renderSectionOption(section, compact = false) {
+    const checked = state.selected.has(section.key);
+    const fit = evaluateSectionFit(section);
+    const auxiliary = isLabOrRecitation(section);
+    const meetings = section.meetings.length
+      ? section.meetings.map(meeting =>
+          `${meeting.days.join("")} ${formatMinutes(meeting.start)}–${formatMinutes(meeting.end)}` +
+          `${meeting.location ? " · " + meeting.location : ""}` +
+          `${meeting.type ? " · " + meeting.type : ""}`
+        ).join("<br>")
+      : "Time not announced";
+
+    let optionClass = "section-option" + (compact ? " compact" : "");
+    if (checked) optionClass += " selected-section";
+    if (fit.kind === "bad") optionClass += " conflicting-section";
+
+    const fitLabel = checked
+      ? (fit.kind === "bad" ? "Selected · conflict" : "Selected")
+      : fit.label;
+
+    return `<label class="${optionClass}">
+      <input
+        type="checkbox"
+        data-section-key="${esc(section.key)}"
+        ${checked ? "checked" : ""}
+      >
+      <span class="section-main">
+        <span class="section-top">
+          <span>
+            <span class="section-title">Section ${esc(section.section || "?")}</span>
+            ${auxiliary ? `<span class="badge aux">${esc(auxiliaryLabel(section))}</span>` : ""}
+            <span class="badge">CRN ${esc(section.crn || "—")}</span>
+          </span>
+          <span class="fit-status ${fit.kind}">${esc(fitLabel)}</span>
+        </span>
+
+        <span class="section-meta">
+          ${meetings}
+          ${section.instructors.length ? `<br>${esc(section.instructors.join(", "))}` : ""}
+        </span>
+
+        ${fit.detail
+          ? `<div class="fit-detail ${fit.kind}">${esc(fit.detail)}</div>`
+          : ""}
+      </span>
+    </label>`;
+  }
+
+  function auxiliaryLabel(section) {
+    const kind = auxiliaryKind(section);
+    if (kind === "lab") return "Lab";
+    if (kind === "discussion") return "Discussion";
+    if (kind === "tutorial") return "Tutorial";
+    return "Recitation";
+  }
+
+  function evaluateSectionFit(section) {
+    if (!section.meetings.length) {
+      return {
+        kind:"unknown",
+        label:"Fit unknown",
+        detail:"No meeting time is available."
+      };
+    }
+
+    const outsideGrid = section.meetings.some(meeting =>
+      meeting.start < START_MIN || meeting.end > END_MIN
+    );
+
+    const otherSelected = state.sections.filter(other =>
+      other.key !== section.key && state.selected.has(other.key)
+    );
+
+    const conflictingSections = conflictingWith(section, otherSelected);
+
+    if (conflictingSections.length) {
+      const names = conflictingSections
+        .map(other => `${other.subject} ${other.course}-${other.section}`)
+        .join(", ");
+
+      return {
+        kind:"bad",
+        label:"Does not fit",
+        detail:`Conflicts with ${names}.`
+      };
+    }
+
+    if (outsideGrid) {
+      return {
+        kind:"unknown",
+        label:"Outside grid",
+        detail:"Part of this section is outside 08:40–19:30."
+      };
+    }
+
+    return {
+      kind:"ok",
+      label:"Fits",
+      detail:"No conflict with the currently selected program."
+    };
+  }
+
+  function conflictingWith(section, candidates) {
+    return candidates.filter(candidate =>
+      section.meetings.some(first =>
+        candidate.meetings.some(second =>
+          meetingsOverlap(first, second)
+        )
+      )
+    );
+  }
+
+  function meetingsOverlap(first, second) {
+    const sameDay = first.days.some(day => second.days.includes(day));
+    return sameDay && first.start < second.end && second.start < first.end;
+  }
+
+  function renderSelectedSummary() {
+    const selectedSections = state.sections.filter(section =>
+      state.selected.has(section.key)
+    );
+
+    const excludedCount = selectedSections.filter(isLabOrRecitation).length;
+    const mainSections = selectedSections.filter(section =>
+      !isLabOrRecitation(section)
+    );
+    const uniqueCourses = new Map();
+
+    mainSections.forEach(section => {
+      const courseKey = `${section.subject}:${section.course}`;
+
+      if (!uniqueCourses.has(courseKey)) {
+        uniqueCourses.set(courseKey, {
+          subject:section.subject,
+          course:section.course,
+          title:section.title,
+          credits:numericCredits(section.credits),
+          sections:new Set()
+        });
+      }
+
+      const course = uniqueCourses.get(courseKey);
+
+      if (section.section) course.sections.add(section.section);
+      if (course.credits === null) {
+        course.credits = numericCredits(section.credits);
+      }
+    });
+
+    const courses = [...uniqueCourses.values()].sort((first, second) =>
+      `${first.subject} ${first.course}`.localeCompare(
+        `${second.subject} ${second.course}`,
+        undefined,
+        {numeric:true}
+      )
+    );
+
+    const knownTotal = courses.reduce(
+      (sum, course) => sum + (course.credits ?? 0),
+      0
+    );
+    const unknownCount = courses.filter(course => course.credits === null).length;
+    const totalText =
+      `${formatCredits(knownTotal)} credits` +
+      (unknownCount ? ` + ${unknownCount} unknown` : "");
+
+    selectedSummaryLabel.textContent =
+      `Selected courses (${courses.length}) · ${totalText}`;
+
+    if (!courses.length) {
+      selectedSummaryList.innerHTML =
+        `<div class="selected-summary-empty">No main courses selected.` +
+        `${excludedCount ? ` ${excludedCount} discussion/lab/recitation/tutorial selection(s) are excluded.` : ""}` +
+        `</div>`;
+      return;
+    }
+
+    selectedSummaryList.innerHTML =
+      courses.map(course => {
+        const sections = [...course.sections].sort((first, second) =>
+          first.localeCompare(second, undefined, {numeric:true})
+        );
+
+        return `<div class="selected-summary-item">
+          <div>
+            <div class="selected-summary-code">${esc(course.subject)} ${esc(course.course)}</div>
+            <div class="selected-summary-name">${esc(course.title)}</div>
+            ${sections.length
+              ? `<div class="selected-summary-note">Section${sections.length > 1 ? "s" : ""}: ${esc(sections.join(", "))}</div>`
+              : ""}
+          </div>
+          <div class="selected-summary-credit">${esc(formatCredits(course.credits))} credits</div>
+        </div>`;
+      }).join("") +
+      (excludedCount
+        ? `<div class="selected-summary-note" style="padding:8px 0">` +
+          `${excludedCount} selected discussion/lab/recitation/tutorial section(s) excluded from the course count and credit total.` +
+          `</div>`
+        : "");
+  }
+
+  function renderSchedule() {
+    const chosen = state.sections.filter(section =>
+      state.selected.has(section.key)
+    );
+    const conflicts = findConflicts(chosen);
+
+    if (!chosen.length) {
+      scheduleWrap.innerHTML =
+        `<div class="empty">Expand a course and select a section from the left.</div>`;
+      conflictNote.className = "conflict-note";
+      return;
+    }
+
+    if (conflicts.sectionKeys.size) {
+      conflictNote.className = "conflict-note show";
+      conflictNote.textContent =
+        `${conflicts.sectionKeys.size} selected section(s) are involved in a time conflict. ` +
+        `Conflicting blocks are outlined in red.`;
+    } else {
+      conflictNote.className = "conflict-note";
+    }
+
+    const gridHeight = minutesToPixels(END_MIN - START_MIN);
+
+    let html = `<div class="schedule">
+      <div class="time-head">Time</div>
+      ${DAYS.map(day => `<div class="day-head">${day.name}</div>`).join("")}
+      <div class="time-col" style="height:${gridHeight}px">
+        ${timeLabels()}
+        <div class="end-time-label">${formatMinutes(END_MIN)}</div>
+      </div>`;
+
+    DAYS.forEach(day => {
+      html += `<div class="day-col" style="height:${gridHeight}px">`;
+
+      chosen.forEach(section => {
+        section.meetings.forEach((meeting, meetingIndex) => {
+          if (!meeting.days.includes(day.code)) return;
+
+          const visibleStart = Math.max(meeting.start, START_MIN);
+          const visibleEnd = Math.min(meeting.end, END_MIN);
+
+          if (visibleEnd <= START_MIN || visibleStart >= END_MIN) return;
+
+          const top = minutesToPixels(visibleStart - START_MIN);
+          const height = Math.max(
+            24,
+            minutesToPixels(visibleEnd - visibleStart)
+          );
+          const eventId = `${section.key}|${day.code}|${meetingIndex}`;
+          const conflictClass = conflicts.eventIds.has(eventId)
+            ? " conflict"
+            : "";
+
+          html += `<div
+            class="event${conflictClass}"
+            style="top:${top}px;height:${height}px;background:${colorFor(`${section.subject}:${section.course}`)}"
+            title="${esc(`${section.subject} ${section.course}-${section.section} · ${formatMinutes(meeting.start)}–${formatMinutes(meeting.end)}`)}"
+          >
+            <strong>${esc(section.subject)} ${esc(section.course)}-${esc(section.section)}</strong>
+            ${esc(formatMinutes(meeting.start))}–${esc(formatMinutes(meeting.end))}
+            ${meeting.location ? `<br>${esc(meeting.location)}` : ""}
+            ${meeting.type ? `<br>${esc(meeting.type)}` : ""}
+          </div>`;
+        });
+      });
+
+      html += `</div>`;
+    });
+
+    html += `</div>`;
+    scheduleWrap.innerHTML = html;
+  }
+
+  function findConflicts(sections) {
+    const eventIds = new Set();
+    const sectionKeys = new Set();
+
+    DAYS.forEach(day => {
+      const events = [];
+
+      sections.forEach(section => {
+        section.meetings.forEach((meeting, meetingIndex) => {
+          if (meeting.days.includes(day.code)) {
+            events.push({
+              section,
+              meeting,
+              id:`${section.key}|${day.code}|${meetingIndex}`
+            });
+          }
+        });
+      });
+
+      for (let firstIndex = 0; firstIndex < events.length; firstIndex++) {
+        for (
+          let secondIndex = firstIndex + 1;
+          secondIndex < events.length;
+          secondIndex++
+        ) {
+          const first = events[firstIndex];
+          const second = events[secondIndex];
+
+          if (
+            first.section.key !== second.section.key &&
+            first.meeting.start < second.meeting.end &&
+            second.meeting.start < first.meeting.end
+          ) {
+            eventIds.add(first.id);
+            eventIds.add(second.id);
+            sectionKeys.add(first.section.key);
+            sectionKeys.add(second.section.key);
+          }
+        }
+      }
+    });
+
+    return {eventIds, sectionKeys};
+  }
+
+  function timeLabels() {
+    let html = "";
+    let current = START_MIN;
+
+    while (current < END_MIN) {
+      const next = Math.min(current + 60, END_MIN);
+      const height = minutesToPixels(next - current);
+
+      html += `<div class="time-label" style="height:${height}px">${formatMinutes(current)}</div>`;
+      current = next;
+    }
+
+    return html;
+  }
+
+  function minutesToPixels(minutes) {
+    return (minutes / 60) * SLOT_HEIGHT;
+  }
+
+  function formatMinutes(minutes) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:` +
+      `${String(minutes % 60).padStart(2, "0")}`;
+  }
+
+  function colorFor(key) {
+    let hash = 0;
+
+    for (let index = 0; index < key.length; index++) {
+      hash = ((hash << 5) - hash) + key.charCodeAt(index);
+    }
+
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue} 78% 84%)`;
+  }
+
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    })[character]);
+  }
+  loadCSVFromGitHub();
+})();
+</script>
+</body>
+</html>
