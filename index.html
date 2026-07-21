@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="suchedule-banner-bridge" content="enabled" />
 <title>SU Course Schedule Builder</title>
 <style>
 :root{
@@ -90,6 +89,54 @@ main{
 .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
 .btn.danger{color:var(--danger)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.banner{background:#f59e0b;color:#172033;border-color:#f59e0b;font-weight:800}
+.banner-tools{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.banner-term{
+  width:92px;
+  padding:9px 10px;
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:9px;
+  background:rgba(255,255,255,.1);
+  color:white;
+}
+.banner-term::placeholder{color:#cbd5e1}
+.banner-dialog{
+  border:0;
+  border-radius:14px;
+  padding:0;
+  width:min(520px,calc(100vw - 32px));
+  box-shadow:0 22px 70px rgba(0,0,0,.28);
+}
+.banner-dialog::backdrop{background:rgba(15,23,42,.62)}
+.banner-dialog-body{padding:20px}
+.banner-dialog h2{margin:0 0 8px;font-size:19px}
+.banner-dialog p{color:var(--muted);font-size:13px;line-height:1.5}
+.banner-crns{
+  margin:12px 0;
+  padding:10px;
+  max-height:160px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#f8fafc;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:12px;
+  word-break:break-word;
+}
+.banner-warning{
+  padding:10px;
+  border:1px solid #fedf89;
+  border-radius:9px;
+  background:#fffaeb;
+  color:#7a2e0e;
+  font-size:12px;
+  line-height:1.45;
+}
 input[type="search"]{
   width:100%;
   padding:10px 12px;
@@ -403,21 +450,6 @@ input[type="search"]{
 @media(max-width:560px){
   .filter-row{grid-template-columns:1fr}
 }
-
-.banner-btn.ready{border-color:#86efac;color:#067647;background:#ecfdf3}
-.banner-btn.connected{border-color:#84adff;color:#1747bf;background:#eef4ff}
-.banner-modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:1000;align-items:center;justify-content:center;padding:18px}
-.banner-modal.show{display:flex}
-.banner-dialog{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid var(--line);padding:20px;box-shadow:0 20px 70px rgba(0,0,0,.25)}
-.banner-dialog h2{margin:0 0 7px}.banner-dialog p{color:var(--muted);line-height:1.45}
-.banner-field{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:10px;margin-top:12px}
-.banner-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px}
-.banner-status{margin-top:13px;padding:10px 12px;border-radius:9px;background:#f2f4f7;font-size:13px}
-.banner-status.ok{background:var(--ok-bg);color:var(--ok)}.banner-status.error{background:var(--danger-bg);color:var(--danger)}
-.banner-change-list{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.banner-change-list>div{border:1px solid var(--line);border-radius:9px;padding:10px}.banner-change-list ul{margin:7px 0 0;padding-left:20px}
-.banner-warning{font-size:12px;color:var(--danger);font-weight:700}.banner-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px}
-@media(max-width:560px){.banner-field{grid-template-columns:1fr}.banner-change-list{grid-template-columns:1fr}}
-
 </style>
 </head>
 <body>
@@ -429,7 +461,18 @@ input[type="search"]{
   <div class="row">
     <button class="btn" id="saveBtn" disabled>Save selection</button>
     <button class="btn" id="loadBtn" disabled>Load selection</button>
-    <button class="btn banner-btn" id="bannerBtn" type="button">Banner extension not detected</button>
+    <div class="banner-tools">
+      <input
+        id="bannerTerm"
+        class="banner-term"
+        inputmode="numeric"
+        maxlength="6"
+        placeholder="Term code"
+        aria-label="Banner six digit term code"
+      >
+      <button class="btn" id="openBannerLoginBtn" type="button">Open Bannerweb</button>
+      <button class="btn banner" id="sendBannerBtn" type="button" disabled>Send selected once</button>
+    </div>
   </div>
 </header>
 
@@ -490,48 +533,31 @@ input[type="search"]{
   </section>
 </main>
 
-<div class="banner-modal" id="bannerModal" aria-hidden="true">
-  <div class="banner-dialog" role="dialog" aria-modal="true" aria-labelledby="bannerTitle">
-    <h2 id="bannerTitle">Bannerweb integration</h2>
-    <p>The browser extension handles Bannerweb requests. Password entry opens in an extension-owned page and is attempted only once per click.</p>
-    <label class="banner-field"><strong>Banner term</strong><input id="bannerTerm" maxlength="6" inputmode="numeric" value="202601"></label>
-    <div class="banner-status" id="bannerStatus">Waiting for the companion extension.</div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn primary" id="bannerLoginBtn" type="button" disabled>Open login</button>
-      <button class="btn" id="bannerRefreshBtn" type="button" disabled>Refresh session</button>
-      <button class="btn" id="bannerOpenFormBtn" type="button" disabled>Open official add/drop</button>
-      <button class="btn" id="bannerLogoutBtn" type="button" disabled>Logout</button>
+<dialog id="bannerConfirmDialog" class="banner-dialog">
+  <div class="banner-dialog-body">
+    <h2>Send selected CRNs to Bannerweb?</h2>
+    <p>
+      This opens the official Bannerweb registration endpoint once in a new tab.
+      You must already be logged into Bannerweb in this browser.
+    </p>
+    <div id="bannerCrnPreview" class="banner-crns"></div>
+    <div class="banner-warning">
+      This site cannot read Bannerweb's result, current registered courses, or registration errors.
+      It sends additions only and does not automatically drop existing courses.
     </div>
-    <div class="banner-actions">
-      <button class="btn" id="bannerCloseBtn" type="button">Close</button>
-      <button class="btn primary" id="bannerReviewBtn" type="button" disabled>Review selected changes</button>
-    </div>
-  </div>
-</div>
-
-<div class="banner-modal" id="bannerConfirmModal" aria-hidden="true">
-  <div class="banner-dialog" role="dialog" aria-modal="true" aria-labelledby="bannerConfirmTitle">
-    <h2 id="bannerConfirmTitle">Confirm Bannerweb changes</h2>
-    <p>This compares the currently registered CRNs with every CRN selected in this schedule.</p>
-    <div class="banner-change-list">
-      <div><strong>Add</strong><ul id="bannerAdds"></ul></div>
-      <div><strong>Drop</strong><ul id="bannerDrops"></ul></div>
-    </div>
-    <p class="banner-warning">Review carefully. Submitting can change your real university registration.</p>
-    <div class="banner-status" id="bannerSubmitStatus">Nothing has been submitted yet.</div>
-    <div class="banner-actions">
-      <button class="btn" id="bannerCancelSubmitBtn" type="button">Cancel</button>
-      <button class="btn primary" id="bannerSubmitBtn" type="button">Submit once to Bannerweb</button>
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="cancelBannerSendBtn" type="button">Cancel</button>
+      <button class="btn banner" id="confirmBannerSendBtn" type="button">Open once in Bannerweb</button>
     </div>
   </div>
-</div>
-
+</dialog>
 
 <script>
 (() => {
   "use strict";
 
   const CSV_URL = "./sabanci_courses.csv";
+  const BANNER_BASE = "https://suis.sabanciuniv.edu/prod";
   const START_MIN = 8 * 60 + 40;
   const END_MIN = 19 * 60 + 30;
   const SLOT_HEIGHT = 64;
@@ -569,53 +595,14 @@ input[type="search"]{
   const selectedSummaryWrap = $("selectedSummaryWrap");
   const selectedSummaryLabel = $("selectedSummaryLabel");
   const selectedSummaryList = $("selectedSummaryList");
-  const bannerBtn = $("bannerBtn");
-  const bannerModal = $("bannerModal");
-  const bannerConfirmModal = $("bannerConfirmModal");
   const bannerTerm = $("bannerTerm");
-  const bannerStatus = $("bannerStatus");
-  const bannerLoginBtn = $("bannerLoginBtn");
-  const bannerRefreshBtn = $("bannerRefreshBtn");
-  const bannerOpenFormBtn = $("bannerOpenFormBtn");
-  const bannerLogoutBtn = $("bannerLogoutBtn");
-  const bannerReviewBtn = $("bannerReviewBtn");
-  const bannerAdds = $("bannerAdds");
-  const bannerDrops = $("bannerDrops");
-  const bannerSubmitStatus = $("bannerSubmitStatus");
-  const bannerSubmitBtn = $("bannerSubmitBtn");
-
-  const bannerState = {
-    extensionReady:false,
-    connected:false,
-    currentCrns:new Set(),
-    user:"",
-    pending:new Map(),
-    pendingChanges:null
-  };
-
-  bannerTerm.value = localStorage.getItem("suBannerTerm") || "202601";
-
-  bannerBtn.addEventListener("click", () => showBannerModal(bannerModal));
-  $("bannerCloseBtn").addEventListener("click", () => hideBannerModal(bannerModal));
-  $("bannerCancelSubmitBtn").addEventListener("click", () => hideBannerModal(bannerConfirmModal));
-  bannerModal.addEventListener("click", event => {
-    if (event.target === bannerModal) hideBannerModal(bannerModal);
-  });
-  bannerConfirmModal.addEventListener("click", event => {
-    if (event.target === bannerConfirmModal) hideBannerModal(bannerConfirmModal);
-  });
-  bannerTerm.addEventListener("change", () => {
-    localStorage.setItem("suBannerTerm", bannerTerm.value.trim());
-    bannerState.connected = false;
-    bannerState.currentCrns.clear();
-    updateBannerUI();
-  });
-  bannerLoginBtn.addEventListener("click", openBannerLogin);
-  bannerRefreshBtn.addEventListener("click", refreshBannerSession);
-  bannerOpenFormBtn.addEventListener("click", () => bannerRequest("opentermform", {term:getBannerTerm()}));
-  bannerLogoutBtn.addEventListener("click", logoutBannerSession);
-  bannerReviewBtn.addEventListener("click", reviewBannerChanges);
-  bannerSubmitBtn.addEventListener("click", submitBannerChanges);
+  const openBannerLoginBtn = $("openBannerLoginBtn");
+  const sendBannerBtn = $("sendBannerBtn");
+  const bannerConfirmDialog = $("bannerConfirmDialog");
+  const bannerCrnPreview = $("bannerCrnPreview");
+  const cancelBannerSendBtn = $("cancelBannerSendBtn");
+  const confirmBannerSendBtn = $("confirmBannerSendBtn");
+  let pendingBannerUrl = "";
 
   dropZone.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", event => loadFile(event.target.files[0]));
@@ -652,6 +639,29 @@ input[type="search"]{
   creditFilter.addEventListener("change", renderCourseList);
   fitFilter.addEventListener("change", renderCourseList);
 
+  bannerTerm.value = localStorage.getItem("suBannerTerm") || "";
+  bannerTerm.addEventListener("input", () => {
+    bannerTerm.value = bannerTerm.value.replace(/\D/g, "").slice(0, 6);
+    localStorage.setItem("suBannerTerm", bannerTerm.value);
+  });
+
+  openBannerLoginBtn.addEventListener("click", () => {
+    window.open(`${BANNER_BASE}/twbkwbis.P_SabanciLogin`, "_blank", "noopener");
+  });
+
+  sendBannerBtn.addEventListener("click", prepareBannerSend);
+  cancelBannerSendBtn.addEventListener("click", () => {
+    pendingBannerUrl = "";
+    bannerConfirmDialog.close();
+  });
+  confirmBannerSendBtn.addEventListener("click", () => {
+    if (!pendingBannerUrl) return;
+    const url = pendingBannerUrl;
+    pendingBannerUrl = "";
+    bannerConfirmDialog.close();
+    window.open(url, "_blank", "noopener");
+  });
+
   $("saveBtn").addEventListener("click", () => {
     localStorage.setItem("suScheduleSelectionV2", JSON.stringify([...state.selected]));
     alert("Selection saved in this browser.");
@@ -663,245 +673,79 @@ input[type="search"]{
     renderAll();
   });
 
-  function showBannerModal(modal) {
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
+  function selectedCRNs() {
+    return [...new Set(
+      state.sections
+        .filter(section => state.selected.has(section.key))
+        .map(section => String(section.crn || "").trim())
+        .filter(crn => /^\d+$/.test(crn))
+    )];
   }
 
-  function hideBannerModal(modal) {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
+  function buildBannerAddUrl(term, crns) {
+    const params = new URLSearchParams();
+    params.append("term_in", term);
+
+    [
+      ["RSTS_IN", "DUMMY"],
+      ["assoc_term_in", "DUMMY"],
+      ["CRN_IN", "DUMMY"],
+      ["start_date_in", "DUMMY"],
+      ["end_date_in", "DUMMY"],
+      ["SUBJ", "DUMMY"],
+      ["CRSE", "DUMMY"],
+      ["SEC", "DUMMY"],
+      ["LEVL", "DUMMY"],
+      ["CRED", "DUMMY"],
+      ["GMOD", "DUMMY"],
+      ["TITLE", "DUMMY"],
+      ["MESG", "DUMMY"],
+      ["REG_BTN", "DUMMY"],
+      ["MESG", "DUMMY"]
+    ].forEach(([name, value]) => params.append(name, value));
+
+    crns.forEach(crn => {
+      params.append("RSTS_IN", "RW");
+      params.append("CRN_IN", crn);
+      params.append("assoc_term_in", "");
+      params.append("start_date_in", "");
+      params.append("end_date_in", "");
+    });
+
+    params.append("regs_row", "0");
+    params.append("wait_row", "0");
+    params.append("add_row", String(crns.length));
+    params.append("REG_BTN", "Submit Changes");
+
+    return `${BANNER_BASE}/su_registration.p_su_register?${params.toString()}`;
   }
 
-  function getBannerTerm() {
+  function prepareBannerSend() {
     const term = bannerTerm.value.trim();
-    if (!/^\d{6}$/.test(term)) throw new Error("Enter a six-digit Banner term code.");
-    localStorage.setItem("suBannerTerm", term);
-    return term;
-  }
+    const crns = selectedCRNs();
 
-  function setBannerStatus(message, kind = "") {
-    bannerStatus.textContent = message;
-    bannerStatus.className = `banner-status${kind ? " " + kind : ""}`;
-  }
-
-  function updateBannerUI() {
-    bannerLoginBtn.disabled = !bannerState.extensionReady;
-    bannerRefreshBtn.disabled = !bannerState.extensionReady;
-    bannerOpenFormBtn.disabled = !bannerState.extensionReady;
-    bannerLogoutBtn.disabled = !bannerState.extensionReady || !bannerState.connected;
-    bannerReviewBtn.disabled = !bannerState.connected || state.selected.size === 0;
-
-    bannerBtn.classList.remove("ready", "connected");
-    if (!bannerState.extensionReady) {
-      bannerBtn.textContent = "Banner extension not detected";
-    } else if (bannerState.connected) {
-      bannerBtn.classList.add("connected");
-      bannerBtn.textContent = bannerState.user
-        ? `Banner: ${bannerState.user}`
-        : "Banner connected";
-    } else {
-      bannerBtn.classList.add("ready");
-      bannerBtn.textContent = "Connect Bannerweb";
-    }
-  }
-
-  function bannerRequest(action, payload = {}, timeoutMs = 30000) {
-    return new Promise((resolve, reject) => {
-      if (!bannerState.extensionReady) {
-        reject(new Error("Bannerweb companion extension is not detected."));
-        return;
-      }
-
-      const requestId = crypto.randomUUID();
-      const timer = setTimeout(() => {
-        bannerState.pending.delete(requestId);
-        reject(new Error("The extension did not respond in time."));
-      }, timeoutMs);
-
-      bannerState.pending.set(requestId, {resolve, reject, timer});
-      window.postMessage({
-        source:"SU_SCHEDULE_SITE",
-        type:"REQUEST",
-        requestId,
-        action,
-        payload
-      }, window.location.origin);
-    });
-  }
-
-  window.addEventListener("message", event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
-    const data = event.data;
-    if (!data || data.source !== "SU_BANNER_EXTENSION") return;
-
-    if (data.type === "READY") {
-      bannerState.extensionReady = true;
-      setBannerStatus("Companion extension detected. Checking Bannerweb session…", "ok");
-      updateBannerUI();
-      refreshBannerSession();
+    if (!/^\d{6}$/.test(term)) {
+      alert("Enter the six-digit Banner term code first.");
+      bannerTerm.focus();
       return;
     }
 
-    if (data.type === "SESSION_CHANGED") {
-      refreshBannerSession();
+    if (!crns.length) {
+      alert("Select at least one section with a valid CRN first.");
       return;
     }
 
-    if (data.type === "RESPONSE") {
-      const pending = bannerState.pending.get(data.requestId);
-      if (!pending) return;
-      clearTimeout(pending.timer);
-      bannerState.pending.delete(data.requestId);
-      pending.resolve(data.response);
-    }
-  });
-
-  function parseBannerSchedule(html) {
-    const dom = new DOMParser().parseFromString(html || "", "text/html");
-    const tables = [...dom.querySelectorAll("table.datadisplaytable")];
-    const currentTable = tables.find(table =>
-      /current schedule/i.test(table.getAttribute("summary") || "") ||
-      [...table.querySelectorAll("th")].some(th => /course reference number|crn/i.test(th.textContent || ""))
-    );
-
-    const crns = new Set();
-    currentTable?.querySelectorAll('input[name="CRN_IN"]').forEach(input => {
-      const value = String(input.value || "").trim();
-      if (/^\d+$/.test(value)) crns.add(value);
-    });
-
-    const staticText = dom.querySelector(".staticheaders")?.textContent
-      ?.split(/\n+/)
-      .map(value => value.trim())
-      .filter(Boolean) || [];
-    const userLine = staticText[0] || "";
-    const user = userLine.replace(/^\d+\s*/, "").trim();
-
-    return {crns, user, dom};
+    pendingBannerUrl = buildBannerAddUrl(term, crns);
+    bannerCrnPreview.textContent = crns.join(", ");
+    bannerConfirmDialog.showModal();
   }
 
-  async function refreshBannerSession() {
-    if (!bannerState.extensionReady) return;
-
-    try {
-      const term = getBannerTerm();
-      setBannerStatus("Checking the existing Bannerweb session…");
-      const response = await bannerRequest("checksession", {term});
-
-      if (!response?.ok) {
-        bannerState.connected = false;
-        bannerState.currentCrns.clear();
-        bannerState.user = "";
-        setBannerStatus("Not logged in. Press Open login for one explicit attempt.");
-        updateBannerUI();
-        return;
-      }
-
-      const parsed = parseBannerSchedule(response.html);
-      bannerState.connected = true;
-      bannerState.currentCrns = parsed.crns;
-      bannerState.user = parsed.user;
-      setBannerStatus(
-        `Connected${parsed.user ? " as " + parsed.user : ""}. ${parsed.crns.size} registered CRN(s) found.`,
-        "ok"
-      );
-      updateBannerUI();
-    } catch (error) {
-      bannerState.connected = false;
-      setBannerStatus(error.message, "error");
-      updateBannerUI();
-    }
-  }
-
-  async function openBannerLogin() {
-    try {
-      const term = getBannerTerm();
-      const response = await bannerRequest("openlogin", {term});
-      if (!response?.ok) throw new Error(response?.msg || "Could not open extension login page.");
-      setBannerStatus("The extension login page was opened. It will make one attempt when you press Login once.");
-    } catch (error) {
-      setBannerStatus(error.message, "error");
-    }
-  }
-
-  async function logoutBannerSession() {
-    try {
-      const response = await bannerRequest("logout", {term:getBannerTerm()});
-      if (!response?.ok) throw new Error(response?.msg || "Logout failed.");
-      bannerState.connected = false;
-      bannerState.currentCrns.clear();
-      bannerState.user = "";
-      setBannerStatus("Logged out.");
-      updateBannerUI();
-    } catch (error) {
-      setBannerStatus(error.message, "error");
-    }
-  }
-
-  function renderCrnList(element, values) {
-    element.innerHTML = values.length
-      ? values.map(value => `<li>${esc(value)}</li>`).join("")
-      : "<li>None</li>";
-  }
-
-  function reviewBannerChanges() {
-    try {
-      if (!bannerState.connected) throw new Error("Connect to Bannerweb first.");
-      getBannerTerm();
-
-      const selected = [...state.selected]
-        .map(key => state.sections.find(section => section.key === key)?.crn || "")
-        .filter(value => /^\d+$/.test(value));
-      const desired = new Set(selected);
-      const current = bannerState.currentCrns;
-      const adds = [...desired].filter(crn => !current.has(crn));
-      const drops = [...current].filter(crn => !desired.has(crn));
-
-      bannerState.pendingChanges = {adds, drops};
-      renderCrnList(bannerAdds, adds);
-      renderCrnList(bannerDrops, drops);
-      bannerSubmitStatus.textContent = adds.length || drops.length
-        ? `${adds.length} add(s), ${drops.length} drop(s).`
-        : "The selected schedule already matches Bannerweb.";
-      bannerSubmitStatus.className = "banner-status";
-      bannerSubmitBtn.disabled = !(adds.length || drops.length);
-      showBannerModal(bannerConfirmModal);
-    } catch (error) {
-      setBannerStatus(error.message, "error");
-      showBannerModal(bannerModal);
-    }
-  }
-
-  async function submitBannerChanges() {
-    const changes = bannerState.pendingChanges;
-    if (!changes || bannerSubmitBtn.disabled) return;
-
-    bannerSubmitBtn.disabled = true;
-    bannerSubmitStatus.textContent = "Submitting one request to Bannerweb…";
-    bannerSubmitStatus.className = "banner-status";
-
-    try {
-      const response = await bannerRequest("submitchanges", {
-        term:getBannerTerm(),
-        adds:changes.adds,
-        drops:changes.drops
-      }, 60000);
-
-      if (!response?.ok) throw new Error(response?.desc || response?.msg || "Bannerweb submission failed.");
-
-      const parsed = parseBannerSchedule(response.html);
-      bannerState.currentCrns = parsed.crns;
-      bannerState.connected = true;
-      bannerSubmitStatus.textContent = "Bannerweb responded. The current registered schedule was refreshed.";
-      bannerSubmitStatus.className = "banner-status ok";
-      setBannerStatus(`Connected. ${parsed.crns.size} registered CRN(s) found.`, "ok");
-      updateBannerUI();
-    } catch (error) {
-      bannerSubmitStatus.textContent = error.message;
-      bannerSubmitStatus.className = "banner-status error";
-      bannerSubmitBtn.disabled = false;
-    }
+  function updateBannerSendButton() {
+    const count = selectedCRNs().length;
+    sendBannerBtn.disabled = count === 0;
+    sendBannerBtn.textContent = count
+      ? `Send ${count} CRN${count === 1 ? "" : "s"} once`
+      : "Send selected once";
   }
 
   function setCSVStatus(message, kind = "") {
@@ -1443,10 +1287,10 @@ input[type="search"]{
   }
 
   function renderAll() {
-    updateBannerUI();
     renderCourseList();
     renderSelectedSummary();
     renderSchedule();
+    updateBannerSendButton();
   }
 
   function auxiliaryKind(section) {
@@ -2162,7 +2006,6 @@ input[type="search"]{
       "'":"&#39;"
     })[character]);
   }
-  updateBannerUI();
   loadCSVFromGitHub();
 })();
 </script>
