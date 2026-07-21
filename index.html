@@ -462,14 +462,6 @@ input[type="search"]{
     <button class="btn" id="saveBtn" disabled>Save selection</button>
     <button class="btn" id="loadBtn" disabled>Load selection</button>
     <div class="banner-tools">
-      <input
-        id="bannerTerm"
-        class="banner-term"
-        inputmode="numeric"
-        maxlength="6"
-        placeholder="Term code"
-        aria-label="Banner six digit term code"
-      >
       <button class="btn" id="openBannerLoginBtn" type="button">Open Bannerweb</button>
       <button class="btn banner" id="sendBannerBtn" type="button" disabled>Send selected once</button>
     </div>
@@ -558,6 +550,7 @@ input[type="search"]{
 
   const CSV_URL = "./sabanci_courses.csv";
   const BANNER_BASE = "https://suis.sabanciuniv.edu/prod";
+  let CURRENT_SEMESTER = null;
   const START_MIN = 8 * 60 + 40;
   const END_MIN = 19 * 60 + 30;
   const SLOT_HEIGHT = 64;
@@ -595,7 +588,6 @@ input[type="search"]{
   const selectedSummaryWrap = $("selectedSummaryWrap");
   const selectedSummaryLabel = $("selectedSummaryLabel");
   const selectedSummaryList = $("selectedSummaryList");
-  const bannerTerm = $("bannerTerm");
   const openBannerLoginBtn = $("openBannerLoginBtn");
   const sendBannerBtn = $("sendBannerBtn");
   const bannerConfirmDialog = $("bannerConfirmDialog");
@@ -638,12 +630,6 @@ input[type="search"]{
   });
   creditFilter.addEventListener("change", renderCourseList);
   fitFilter.addEventListener("change", renderCourseList);
-
-  bannerTerm.value = localStorage.getItem("suBannerTerm") || "";
-  bannerTerm.addEventListener("input", () => {
-    bannerTerm.value = bannerTerm.value.replace(/\D/g, "").slice(0, 6);
-    localStorage.setItem("suBannerTerm", bannerTerm.value);
-  });
 
   openBannerLoginBtn.addEventListener("click", () => {
     window.open(`${BANNER_BASE}/twbkwbis.P_SabanciLogin`, "_blank", "noopener");
@@ -719,16 +705,9 @@ input[type="search"]{
 
     return `${BANNER_BASE}/su_registration.p_su_register?${params.toString()}`;
   }
-
   function prepareBannerSend() {
-    const term = bannerTerm.value.trim();
+    const term = CURRENT_SEMESTER;
     const crns = selectedCRNs();
-
-    if (!/^\d{6}$/.test(term)) {
-      alert("Enter the six-digit Banner term code first.");
-      bannerTerm.focus();
-      return;
-    }
 
     if (!crns.length) {
       alert("Select at least one section with a valid CRN first.");
@@ -756,6 +735,22 @@ input[type="search"]{
   function loadCSVText(csvText, sourceLabel) {
     try {
       const rows = parseCSV(csvText);
+
+      const daterange = rows[0].daterange;
+      const currentyear = parseInt(daterange.split(",")[1].split("-")[0].trim());
+      if (daterange.startsWith("Aug") || daterange.startsWith("Sep") || daterange.startsWith("Oct")) {
+        CURRENT_SEMESTER = String(currentyear) + "01";
+      }
+      else if (daterange.startsWith("Jan") || daterange.startsWith("Feb")) {
+        CURRENT_SEMESTER = String(currentyear-1) + "02";
+      }
+      else if (daterange.startsWith("Jun") || daterange.startsWith("Jul")) {
+        CURRENT_SEMESTER = String(currentyear-1) + "03";
+      }
+      else {
+        throw new Error("Could not determine the current semester from the CSV daterange. Check the CSV file format.");
+      }
+      
       state.sections = groupRows(rows);
       state.courses = groupCourses(state.sections);
 
